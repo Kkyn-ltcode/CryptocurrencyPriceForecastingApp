@@ -1,9 +1,5 @@
-import json
-import os
-import datetime
 import pandas as pd
-import mysql.connector
-from mysql.connector import Error
+import os
 
 from binance.client import Client
 
@@ -15,8 +11,6 @@ class Dataset():
         self.client = Client()
 
         self.set_config()
-        self.db_connect()
-        self.create_table()
 
         if interval == 'day':
             self.kline_interval = Client.KLINE_INTERVAL_1DAY
@@ -25,7 +19,6 @@ class Dataset():
 
         if not os.path.exists(f'data/{self.file_name}.csv'):
             self.get_historical_data()
-            self.insert_to_db(self.dataset)
         else:
             self.dataset = pd.read_csv(f'data/{self.file_name}.csv')
             self.update_data()
@@ -76,86 +69,8 @@ def update_data(self):
         df = df.astype(self.dtypes)
 
         df.to_csv(f'data/{self.file_name}.csv', index=False)
-        self.insert_to_db(df.iloc[-len(newest_data[1:-1]):])
 
     self.dataset = df
 
 
 Dataset.update_data = update_data
-
-
-def db_connect(self):
-    with open('data/info.json', 'r') as file:
-        db = json.load(file)
-    try:
-        connection = mysql.connector.connect(host=db['mysql']['host'],
-                                             database='Bitcoin',
-                                             user=db['mysql']['user'],
-                                             password=db['mysql']['password'])
-        self.connection = connection
-    except Error as e:
-        print("Error while connecting to MySQL", e)
-
-
-Dataset.db_connect = db_connect
-
-
-def create_table(self):
-    create_table_command = (f"""CREATE TABLE IF NOT EXISTS `{self.coin}` (
-                                `ID` int NOT NULL AUTO_INCREMENT,
-                                `OpenTime` varchar(255) NOT NULL,
-                                `Open` float NOT NULL,`High` float NOT NULL,
-                                `Low` float NOT NULL,`Close` float NOT NULL,
-                                `Volume` float NOT NULL,
-                                `CloseTime` varchar(255) NOT NULL,
-                                `QuoteAssetVolume` float NOT NULL,
-                                `NumberOfTrades` int NOT NULL,
-                                `TakerBuyBaseAssetVolume` float NOT NULL,
-                                `TakerBuyQuoteAssetVolume` float NOT NULL,
-                                PRIMARY KEY (ID));""")
-    conn = self.connection
-    curr = conn.cursor()
-    curr.execute(create_table_command)
-    conn.commit()
-
-
-Dataset.create_table = create_table
-
-
-def insert_to_db(self, df_to_insert):
-    conn = self.connection
-    curr = conn.cursor()
-    for i, row in df_to_insert.iterrows():
-        self.insert(curr, row)
-    conn.commit()
-
-
-Dataset.insert_to_db = insert_to_db
-
-
-def insert(self, curr, row):
-    insert_command = (f"""INSERT INTO `{self.coin}` (
-                        `OpenTime`, `Open`, `High`, `Low`, `Close`, `Volume`, 
-                        `CloseTime`, `QuoteAssetVolume`, `NumberOfTrades`, 
-                        `TakerBuyBaseAssetVolume`, `TakerBuyQuoteAssetVolume`) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""")
-
-    values_to_insert = (row['OpenTime'], row['Open'], row['High'], row['Low'],
-                        row['Close'], row['Volume'], row['CloseTime'], row['QuoteAssetVolume'],
-                        row['NumberOfTrades'], row['TakerBuyBaseAssetVolume'],
-                        row['TakerBuyQuoteAssetVolume'])
-    curr.execute(insert_command, values_to_insert)
-
-
-Dataset.insert = insert
-
-
-def drop_table(self):
-    drop_command = (f"""DROP TABLE `{self.coin}`;""")
-    conn = self.connection
-    curr = conn.cursor()
-    curr.execute(drop_command)
-    conn.commit()
-
-
-Dataset.drop_table = drop_table
